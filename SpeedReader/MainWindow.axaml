@@ -1,0 +1,181 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="SpeedReader.MainWindow"
+        Title="Speed Reader"
+        Width="800" Height="600"
+        Background="#2D2D30">
+    <Window.Styles>
+        <!-- Global Styles -->
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="#E6E6E6"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#0078D7"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#1C97EA"/>
+        </Style>
+        <Style Selector="Button:disabled">
+            <Setter Property="Background" Value="#505050"/>
+            <Setter Property="Foreground" Value="#A0A0A0"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#3E3E42"/>
+            <Setter Property="Foreground" Value="#E6E6E6"/>
+        </Style>
+        <Style Selector="RadioButton">
+            <Setter Property="Foreground" Value="#E6E6E6"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#3E3E42"/>
+            <Setter Property="Foreground" Value="#E6E6E6"/>
+            <Setter Property="CaretBrush" Value="#E6E6E6"/>
+        </Style>
+        <Style Selector="ProgressBar">
+            <Setter Property="Foreground" Value="#0078D7"/>
+            <Setter Property="Background" Value="#3E3E42"/>
+        </Style>
+        
+        <!-- Word Display Animation -->
+        <Style Selector="TextBlock#WordDisplay">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+    </Window.Styles>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Input Section -->
+        <Border Grid.Row="0" Background="#252526" CornerRadius="0,0,8,8" Margin="0,0,0,10" Padding="20">
+            <StackPanel>
+                <TextBlock Text="SPEED READER" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20" Foreground="#0078D7"/>
+                
+                <Grid Margin="0,5,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBlock Text="Source:" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold"/>
+                    <TextBox x:Name="SourceTextBox" Grid.Column="1" Margin="0,0,10,0" Height="35" VerticalContentAlignment="Center"/>
+                    <Button x:Name="BrowseButton" Grid.Column="2" Content="Browse" Click="BrowseButton_Click"/>
+                </Grid>
+                
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,15">
+                    <RadioButton x:Name="PdfRadioButton" Content="PDF Document" IsChecked="True" Margin="0,0,20,0" />
+                    <RadioButton x:Name="WebRadioButton" Content="Web Page" Margin="0,0,15,0" />
+                </StackPanel>
+                
+                <Grid Margin="0,5,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <Border Grid.Column="0" Background="#333337" CornerRadius="4" Margin="0,0,10,0" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="Font Size" Margin="0,0,0,8" FontWeight="SemiBold"/>
+                            <ComboBox x:Name="FontSizeComboBox" SelectedIndex="2" Width="120" HorizontalAlignment="Left">
+                                <ComboBoxItem Content="12" />
+                                <ComboBoxItem Content="16" />
+                                <ComboBoxItem Content="20" />
+                                <ComboBoxItem Content="24" />
+                                <ComboBoxItem Content="32" />
+                                <ComboBoxItem Content="48" />
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+                    
+                    <Border Grid.Column="1" Background="#333337" CornerRadius="4" Margin="5,0,5,0" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="Font Family" Margin="0,0,0,8" FontWeight="SemiBold"/>
+                            <ComboBox x:Name="FontFamilyComboBox" SelectedIndex="0" Width="120" HorizontalAlignment="Left">
+                                <ComboBoxItem Content="Arial" />
+                                <ComboBoxItem Content="Times New Roman" />
+                                <ComboBoxItem Content="Courier New" />
+                                <ComboBoxItem Content="Verdana" />
+                                <ComboBoxItem Content="Calibri" />
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+                    
+                    <Border Grid.Column="2" Background="#333337" CornerRadius="4" Margin="10,0,0,0" Padding="10">
+                        <StackPanel>
+                            <TextBlock Text="Words Per Minute" Margin="0,0,0,8" FontWeight="SemiBold"/>
+                            <ComboBox x:Name="SpeedComboBox" SelectedIndex="2" Width="120" HorizontalAlignment="Left">
+                                <ComboBoxItem Content="60 (Slow)" />
+                                <ComboBoxItem Content="150" />
+                                <ComboBoxItem Content="250" />
+                                <ComboBoxItem Content="350" />
+                                <ComboBoxItem Content="500 (Fast)" />
+                            </ComboBox>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Display Section -->
+        <Border Grid.Row="1" Background="#1E1E1E" Margin="20,10" BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="8" BoxShadow="0 4 8 0 #15000000">
+            <Grid>
+                <!-- Fixed-size word display container that stays centered -->
+                <Border x:Name="WordHighlight"
+                        Background="#2D5F9C" 
+                        CornerRadius="6"
+                        Width="400"
+                        Height="120"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        BoxShadow="0 2 10 0 #20000000">
+                    <TextBlock x:Name="WordDisplay" 
+                               Text="Words will appear here" 
+                               FontSize="32" 
+                               FontWeight="Bold" 
+                               TextAlignment="Center"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="#FFFFFF"/>
+                </Border>
+                
+                <!-- Reading stats -->
+                <StackPanel VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,10,15,0">
+                    <TextBlock x:Name="StatsDisplay" 
+                               Text="0 / 0 words" 
+                               Foreground="#AAAAAA" 
+                               FontSize="12"/>
+                </StackPanel>
+                           
+                <ProgressBar x:Name="ReadingProgress" 
+                             Height="12" 
+                             VerticalAlignment="Bottom" 
+                             Margin="20,0,20,20"
+                             CornerRadius="6"/>
+            </Grid>
+        </Border>
+
+        <!-- Controls Section -->
+        <Border Grid.Row="2" Background="#252526" CornerRadius="8,8,0,0" Margin="0,10,0,0" Padding="20,15">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button x:Name="StartButton" Content="Start Reading" Width="140" Margin="10,0" Click="StartButton_Click"/>
+                <Button x:Name="PauseButton" Content="Pause" Width="140" Margin="10,0" Click="PauseButton_Click" IsEnabled="False"/>
+                <Button x:Name="StopButton" Content="Stop" Width="140" Margin="10,0" Click="StopButton_Click" IsEnabled="False"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window> 
