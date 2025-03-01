@@ -156,17 +156,50 @@ namespace SpeedReader
                     }
                     else
                     {
-                        List<string> webWords = await ExtractTextFromWebPage(SourceTextBox.Text);
-                        if (webWords.Count == 0)
+                        // For web pages, use the WebPageSelector
+                        string url = SourceTextBox.Text;
+                        
+                        // Validate URL
+                        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri))
                         {
-                            await ShowMessageAsync("Warning", "No words were extracted from the web page.");
+                            await ShowMessageAsync("Error", "Please enter a valid URL.");
                             await ResetControlsAsync();
                             return;
                         }
                         
-                        await Dispatcher.UIThread.InvokeAsync(() => {
-                            _words = new List<string>(webWords);
-                        });
+                        try
+                        {
+                            // Show the web page selector
+                            var webPageSelector = new WebPageSelector();
+                            
+                            // Handle the content selected event
+                            List<string> webWords = new List<string>();
+                            webPageSelector.ContentSelected += (s, args) => {
+                                webWords = args.Words;
+                            };
+                            
+                            // Initialize and show the selector
+                            await webPageSelector.InitializeAsync(url);
+                            await webPageSelector.ShowDialog(this);
+                            
+                            // Check if words were extracted
+                            if (webWords.Count == 0)
+                            {
+                                await ShowMessageAsync("Warning", "No words were extracted from the web page.");
+                                await ResetControlsAsync();
+                                return;
+                            }
+                            
+                            await Dispatcher.UIThread.InvokeAsync(() => {
+                                _words = new List<string>(webWords);
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            await ShowMessageAsync("Error", $"Web page error: {ex.Message}");
+                            await ResetControlsAsync();
+                            return;
+                        }
                     }
 
                     if (_words.Count == 0)
@@ -419,13 +452,23 @@ namespace SpeedReader
                         var htmlDocument = new HtmlDocument();
                         htmlDocument.LoadHtml(htmlContent);
 
-                        // Extract text from the main content of the page
-                        // This is a simple implementation and might need refinement for specific websites
-                        var bodyNode = htmlDocument.DocumentNode.SelectSingleNode("//body");
-                        if (bodyNode != null)
+                        // Try to find the main content area using heuristics
+                        HtmlNode contentNode = FindMainContent(htmlDocument);
+                        
+                        if (contentNode != null)
                         {
-                            string text = bodyNode.InnerText;
+                            string text = contentNode.InnerText;
                             extractedWords = ProcessText(text);
+                        }
+                        else
+                        {
+                            // Fallback to body if no content area found
+                            var bodyNode = htmlDocument.DocumentNode.SelectSingleNode("//body");
+                            if (bodyNode != null)
+                            {
+                                string text = bodyNode.InnerText;
+                                extractedWords = ProcessText(text);
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -440,6 +483,54 @@ namespace SpeedReader
             }
             
             return extractedWords;
+        }
+
+        private HtmlNode FindMainContent(HtmlDocument htmlDocument)
+        {
+            // Try to find the main content using common patterns
+            
+            // 1. Look for article elements
+            var articles = htmlDocument.DocumentNode.SelectNodes("//article");
+            if (articles?.Count > 0)
+                return articles[0];
+            
+            // 2. Look for main element
+            var mainElements = htmlDocument.DocumentNode.SelectNodes("//main");
+            if (mainElements?.Count > 0)
+                return mainElements[0];
+            
+            // 3. Look for common content class names
+            var contentClasses = new[] { "content", "post", "entry", "article", "story", "blog-post" };
+            foreach (var className in contentClasses)
+            {
+                var elements = htmlDocument.DocumentNode.SelectNodes($"//*[contains(@class, '{className}')]");
+                if (elements?.Count > 0)
+                    return elements[0];
+            }
+            
+            // 4. Look for divs with lots of text
+            var divs = htmlDocument.DocumentNode.SelectNodes("//div");
+            if (divs != null)
+            {
+                HtmlNode bestDiv = null;
+                int maxTextLength = 0;
+                
+                foreach (var div in divs)
+                {
+                    string text = div.InnerText;
+                    if (text.Length > maxTextLength && div.SelectNodes(".//p")?.Count >= 3)
+                    {
+                        maxTextLength = text.Length;
+                        bestDiv = div;
+                    }
+                }
+                
+                if (bestDiv != null)
+                    return bestDiv;
+            }
+            
+            // No suitable content found
+            return null;
         }
 
         private List<string> ProcessText(string text)

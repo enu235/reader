@@ -1,0 +1,120 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="SpeedReader.WebPageSelector"
+        Title="Web Page Content Selector"
+        Width="900" Height="700"
+        Background="#1E1E1E">
+    <Window.Styles>
+        <!-- Global Styles -->
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#0078D7"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#1C97EA"/>
+        </Style>
+        <Style Selector="TabControl">
+            <Setter Property="Background" Value="#252526"/>
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="Background" Value="#333337"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="TabItem:selected">
+            <Setter Property="Background" Value="#0078D7"/>
+        </Style>
+    </Window.Styles>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#252526" Padding="15" BorderBrush="#3E3E42" BorderThickness="0,0,0,1">
+            <StackPanel>
+                <TextBlock Text="Select Content to Read" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="UrlTextBlock" FontSize="12" HorizontalAlignment="Center" Margin="0,5,0,0" Opacity="0.7"/>
+            </StackPanel>
+        </Border>
+        
+        <!-- Content Area -->
+        <Grid Grid.Row="1" Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
+            <!-- Loading indicator -->
+            <ProgressBar x:Name="LoadingProgress" IsIndeterminate="True" Height="4" Grid.Row="0" 
+                         IsVisible="False" Margin="0,0,0,5"/>
+            
+            <TextBlock x:Name="LoadingText" 
+                       Text="Loading web page..." 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Top"
+                       Margin="0,10,0,0"
+                       IsVisible="False"/>
+            
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="250"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Content Elements List -->
+                <Border Grid.Column="0" Background="#252526" BorderBrush="#444444" BorderThickness="1" Margin="0,0,5,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <TextBlock Text="Detected Content Areas" Margin="10" FontWeight="SemiBold"/>
+                        
+                        <ListBox x:Name="ContentElementsComboBox" Grid.Row="1" Background="Transparent" 
+                                 SelectionChanged="ContentElementsComboBox_SelectionChanged"/>
+                    </Grid>
+                </Border>
+                
+                <!-- Content Preview -->
+                <Border Grid.Column="1" Background="#252526" BorderBrush="#444444" BorderThickness="1" Margin="5,0,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <TextBlock Text="Content Preview" Margin="10" FontWeight="SemiBold"/>
+                        
+                        <ScrollViewer Grid.Row="1" Margin="10,0,10,10">
+                            <TextBlock x:Name="ExtractedTextPreview" 
+                                       TextWrapping="Wrap" 
+                                       FontSize="14"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+        
+        <!-- Footer with buttons -->
+        <Border Grid.Row="2" Background="#252526" Padding="15" BorderBrush="#3E3E42" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button x:Name="RefreshContentButton" Content="Refresh Content" Margin="5,0" Click="RefreshContentButton_Click"/>
+                <Button x:Name="AutoDetectButton" Content="Auto-Detect Content" Margin="5,0" Click="AutoDetectButton_Click"/>
+                <Button x:Name="UseSelectedButton" Content="Use Selected Content" Margin="5,0" Click="UseSelectedButton_Click" IsEnabled="False"/>
+                <Button x:Name="CancelButton" Content="Cancel" Margin="5,0" Click="CancelButton_Click"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window> 
