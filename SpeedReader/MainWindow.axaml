@@ -6,11 +6,11 @@
         x:Class="SpeedReader.MainWindow"
         Title="Speed Reader"
         Width="800" Height="600"
-        Background="#2D2D30">
+        Background="#1E1E1E">
     <Window.Styles>
         <!-- Global Styles -->
         <Style Selector="TextBlock">
-            <Setter Property="Foreground" Value="#E6E6E6"/>
+            <Setter Property="Foreground" Value="White"/>
         </Style>
         <Style Selector="Button">
             <Setter Property="Background" Value="#0078D7"/>
@@ -26,20 +26,20 @@
             <Setter Property="Foreground" Value="#A0A0A0"/>
         </Style>
         <Style Selector="ComboBox">
-            <Setter Property="Background" Value="#3E3E42"/>
-            <Setter Property="Foreground" Value="#E6E6E6"/>
+            <Setter Property="Background" Value="#333337"/>
+            <Setter Property="Foreground" Value="White"/>
         </Style>
         <Style Selector="RadioButton">
-            <Setter Property="Foreground" Value="#E6E6E6"/>
+            <Setter Property="Foreground" Value="White"/>
         </Style>
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#3E3E42"/>
-            <Setter Property="Foreground" Value="#E6E6E6"/>
-            <Setter Property="CaretBrush" Value="#E6E6E6"/>
+            <Setter Property="Background" Value="#333337"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CaretBrush" Value="White"/>
         </Style>
         <Style Selector="ProgressBar">
             <Setter Property="Foreground" Value="#0078D7"/>
-            <Setter Property="Background" Value="#3E3E42"/>
+            <Setter Property="Background" Value="#333337"/>
         </Style>
         
         <!-- Word Display Animation -->
@@ -60,9 +60,9 @@
         </Grid.RowDefinitions>
         
         <!-- Input Section -->
-        <Border Grid.Row="0" Background="#252526" CornerRadius="0,0,8,8" Margin="0,0,0,10" Padding="20">
+        <Border Grid.Row="0" Background="#252526" CornerRadius="0,0,8,8" Margin="0,0,0,10" Padding="20" BorderBrush="#3E3E42" BorderThickness="1">
             <StackPanel>
-                <TextBlock Text="SPEED READER" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20" Foreground="#0078D7"/>
+                <TextBlock Text="SPEED READER" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,20" Foreground="#00A5FF"/>
                 
                 <Grid Margin="0,5,0,10">
                     <Grid.ColumnDefinitions>
@@ -88,7 +88,7 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     
-                    <Border Grid.Column="0" Background="#333337" CornerRadius="4" Margin="0,0,10,0" Padding="10">
+                    <Border Grid.Column="0" Background="#333337" CornerRadius="4" Margin="0,0,10,0" Padding="10" BorderBrush="#444444" BorderThickness="1">
                         <StackPanel>
                             <TextBlock Text="Font Size" Margin="0,0,0,8" FontWeight="SemiBold"/>
                             <ComboBox x:Name="FontSizeComboBox" SelectedIndex="2" Width="120" HorizontalAlignment="Left">
@@ -102,7 +102,7 @@
                         </StackPanel>
                     </Border>
                     
-                    <Border Grid.Column="1" Background="#333337" CornerRadius="4" Margin="5,0,5,0" Padding="10">
+                    <Border Grid.Column="1" Background="#333337" CornerRadius="4" Margin="5,0,5,0" Padding="10" BorderBrush="#444444" BorderThickness="1">
                         <StackPanel>
                             <TextBlock Text="Font Family" Margin="0,0,0,8" FontWeight="SemiBold"/>
                             <ComboBox x:Name="FontFamilyComboBox" SelectedIndex="0" Width="120" HorizontalAlignment="Left">
@@ -115,7 +115,7 @@
                         </StackPanel>
                     </Border>
                     
-                    <Border Grid.Column="2" Background="#333337" CornerRadius="4" Margin="10,0,0,0" Padding="10">
+                    <Border Grid.Column="2" Background="#333337" CornerRadius="4" Margin="10,0,0,0" Padding="10" BorderBrush="#444444" BorderThickness="1">
                         <StackPanel>
                             <TextBlock Text="Words Per Minute" Margin="0,0,0,8" FontWeight="SemiBold"/>
                             <ComboBox x:Name="SpeedComboBox" SelectedIndex="2" Width="120" HorizontalAlignment="Left">
@@ -132,16 +132,18 @@
         </Border>
 
         <!-- Display Section -->
-        <Border Grid.Row="1" Background="#1E1E1E" Margin="20,10" BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="8" BoxShadow="0 4 8 0 #15000000">
+        <Border Grid.Row="1" Background="#252526" Margin="20,10" BorderBrush="#444444" BorderThickness="1" CornerRadius="8" BoxShadow="0 4 8 0 #15000000">
             <Grid>
                 <!-- Fixed-size word display container that stays centered -->
                 <Border x:Name="WordHighlight"
-                        Background="#2D5F9C" 
+                        Background="#0066CC" 
                         CornerRadius="6"
                         Width="400"
                         Height="120"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
+                        BorderBrush="#0078D7"
+                        BorderThickness="1"
                         BoxShadow="0 2 10 0 #20000000">
                     <TextBlock x:Name="WordDisplay" 
                                Text="Words will appear here" 
@@ -150,14 +152,14 @@
                                TextAlignment="Center"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"
-                               Foreground="#FFFFFF"/>
+                               Foreground="White"/>
                 </Border>
                 
                 <!-- Reading stats -->
                 <StackPanel VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,10,15,0">
                     <TextBlock x:Name="StatsDisplay" 
                                Text="0 / 0 words" 
-                               Foreground="#AAAAAA" 
+                               Foreground="White" 
                                FontSize="12"/>
                 </StackPanel>
                            
@@ -170,7 +172,7 @@
         </Border>
 
         <!-- Controls Section -->
-        <Border Grid.Row="2" Background="#252526" CornerRadius="8,8,0,0" Margin="0,10,0,0" Padding="20,15">
+        <Border Grid.Row="2" Background="#252526" CornerRadius="8,8,0,0" Margin="0,10,0,0" Padding="20,15" BorderBrush="#3E3E42" BorderThickness="1">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button x:Name="StartButton" Content="Start Reading" Width="140" Margin="10,0" Click="StartButton_Click"/>
                 <Button x:Name="PauseButton" Content="Pause" Width="140" Margin="10,0" Click="PauseButton_Click" IsEnabled="False"/>

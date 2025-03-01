@@ -512,6 +512,9 @@ namespace SpeedReader
                         Title = title,
                         SizeToContent = SizeToContent.WidthAndHeight,
                         WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        MinWidth = 300,
+                        MinHeight = 150,
+                        Background = new SolidColorBrush(Color.Parse("#252526")),
                         Content = new StackPanel
                         {
                             Margin = new Thickness(20),
@@ -520,14 +523,18 @@ namespace SpeedReader
                                 new TextBlock
                                 {
                                     Text = message,
-                                    Margin = new Thickness(0, 0, 0, 20)
+                                    Margin = new Thickness(0, 0, 0, 20),
+                                    Foreground = new SolidColorBrush(Color.Parse("White")),
+                                    TextWrapping = TextWrapping.Wrap
                                 },
                                 new Button
                                 {
                                     Content = "OK",
                                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                                    Width = 80,
-                                    Height = 30
+                                    Width = 100,
+                                    Height = 35,
+                                    Background = new SolidColorBrush(Color.Parse("#0078D7")),
+                                    Foreground = new SolidColorBrush(Color.Parse("White"))
                                 }
                             }
                         }
