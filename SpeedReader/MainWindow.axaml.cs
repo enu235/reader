@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -22,10 +24,12 @@ namespace SpeedReader
     public partial class MainWindow : Window
     {
         private List<string> _words = new List<string>();
+        private string _fullText = "";
         private int _currentWordIndex = 0;
         private DispatcherTimer _timer = new DispatcherTimer();
         private CancellationTokenSource? _cancellationTokenSource;
         private bool _isPaused = false;
+        private const int CONTEXT_WINDOW = 100; // Number of words to show before and after
 
         public MainWindow()
         {
@@ -38,7 +42,31 @@ namespace SpeedReader
                 FontSizeComboBox.SelectedIndex = 0;
                 FontFamilyComboBox.SelectedIndex = 0;
                 PdfRadioButton.IsChecked = true;
+                
+                // Initialize context display
+                InitializeContextDisplay();
             });
+        }
+
+        private void InitializeContextDisplay()
+        {
+            // Set initial visibility based on toggle state
+            bool showContext = ContextToggle.IsChecked ?? true;
+            ContextBorder.IsVisible = showContext;
+            
+            // Adjust word display z-index to ensure it's on top
+            WordHighlight.ZIndex = 10;
+        }
+
+        private void ContextToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            ContextBorder.IsVisible = true;
+            UpdateContextDisplay();
+        }
+
+        private void ContextToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            ContextBorder.IsVisible = false;
         }
 
         private async void BrowseButton_Click(object? sender, RoutedEventArgs e)
@@ -328,6 +356,9 @@ namespace SpeedReader
                         // Update the word display with animation
                         UpdateWordDisplay(_words[_currentWordIndex]);
                         
+                        // Update context text
+                        UpdateContextDisplay();
+                        
                         // Update progress and stats
                         ReadingProgress.Value = _currentWordIndex + 1;
                         UpdateStatsDisplay();
@@ -371,6 +402,214 @@ namespace SpeedReader
             catch (Exception ex)
             {
                 Console.WriteLine($"Error updating word display: {ex.Message}");
+            }
+        }
+        
+        private void UpdateContextDisplay()
+        {
+            try
+            {
+                if (_words.Count == 0 || !ContextBorder.IsVisible) return;
+                
+                // Update full context display if it's empty
+                if (string.IsNullOrEmpty(ContextTextDisplay.Text))
+                {
+                    ContextTextDisplay.Text = _fullText;
+                }
+                
+                // Calculate the visible range
+                int startIndex = Math.Max(0, _currentWordIndex - CONTEXT_WINDOW);
+                int endIndex = Math.Min(_words.Count - 1, _currentWordIndex + CONTEXT_WINDOW);
+                
+                // Clear existing highlights
+                HighlightCanvas.Children.Clear();
+                
+                // Find position of current word in the text
+                if (_currentWordIndex < _words.Count && !string.IsNullOrEmpty(_fullText))
+                {
+                    // Get the current word's position
+                    int position = GetPositionOfWordInText(_currentWordIndex);
+                    if (position >= 0)
+                    {
+                        // Scroll to make sure the word is visible
+                        ScrollToPosition(position);
+                        
+                        // Add highlight for the current word
+                        HighlightCurrentWord(position, _words[_currentWordIndex].Length);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating context display: {ex.Message}");
+            }
+        }
+        
+        private int GetPositionOfWordInText(int wordIndex)
+        {
+            // This is a simplified approach - might need refinement depending on text format
+            if (string.IsNullOrEmpty(_fullText) || wordIndex < 0 || wordIndex >= _words.Count)
+                return -1;
+            
+            try
+            {
+                // Find the position by joining words up to the current one
+                // This is not 100% accurate but serves as an approximation
+                
+                // If there's too many words, we'll use a sliding window approach
+                int startWindow = Math.Max(0, wordIndex - 5);
+                int endWindow = Math.Min(_words.Count - 1, wordIndex + 5);
+                
+                // Build a search pattern with the current word plus some context
+                StringBuilder pattern = new StringBuilder();
+                
+                // Add words before the current one
+                for (int i = startWindow; i < wordIndex; i++)
+                {
+                    pattern.Append(_words[i]).Append(" ");
+                }
+                
+                // Add the current word
+                string currentWord = _words[wordIndex];
+                pattern.Append(currentWord);
+                
+                // Add a few words after as context
+                if (wordIndex < endWindow)
+                {
+                    pattern.Append(" ");
+                    for (int i = wordIndex + 1; i <= endWindow; i++)
+                    {
+                        pattern.Append(_words[i]);
+                        if (i < endWindow) pattern.Append(" ");
+                    }
+                }
+                
+                // Try to find this pattern in the text
+                string searchPattern = pattern.ToString();
+                int foundPos = _fullText.IndexOf(searchPattern);
+                
+                // If found, calculate the exact position of the current word
+                if (foundPos >= 0)
+                {
+                    // Calculate offset to the start of the current word within the pattern
+                    int offsetInPattern = 0;
+                    for (int i = startWindow; i < wordIndex; i++)
+                    {
+                        offsetInPattern += _words[i].Length + 1; // +1 for space
+                    }
+                    
+                    return foundPos + offsetInPattern;
+                }
+                else if (!string.IsNullOrEmpty(currentWord))
+                {
+                    // Fallback: just try to find the word by itself
+                    // This is less accurate but better than nothing
+                    
+                    // Find all occurrences of the word
+                    List<int> positions = new List<int>();
+                    int pos = 0;
+                    while ((pos = _fullText.IndexOf(currentWord, pos)) >= 0)
+                    {
+                        positions.Add(pos);
+                        pos += currentWord.Length;
+                    }
+                    
+                    // Try to find the occurrence closest to where we expect it
+                    if (positions.Count > 0)
+                    {
+                        // Estimate where we expect to be based on progress
+                        double progress = (double)wordIndex / _words.Count;
+                        int expectedPos = (int)(_fullText.Length * progress);
+                        
+                        // Find closest position
+                        return positions.OrderBy(p => Math.Abs(p - expectedPos)).First();
+                    }
+                }
+                
+                // If no match found, return a position based on progress through the text
+                return (int)(_fullText.Length * ((double)wordIndex / _words.Count));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error finding word position: {ex.Message}");
+                return -1;
+            }
+        }
+        
+        private void ScrollToPosition(int position)
+        {
+            try
+            {
+                // Estimate the position in the document by creating a temporary TextBlock
+                // with the same formatting as ContextTextDisplay but only containing text up to the position
+                var tempText = _fullText.Substring(0, position);
+                var tempTextBlock = new TextBlock
+                {
+                    Text = tempText,
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = ContextTextDisplay.Bounds.Width
+                };
+                
+                // Measure the temporary TextBlock
+                tempTextBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                
+                // Calculate the approximate vertical position
+                double lineHeight = 20; // Estimated line height
+                int lineCount = (int)(tempTextBlock.DesiredSize.Height / lineHeight);
+                double verticalOffset = lineCount * lineHeight;
+                
+                // Scroll to the position
+                ContextScrollViewer.Offset = new Vector(0, Math.Max(0, verticalOffset - 100));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error scrolling to position: {ex.Message}");
+            }
+        }
+        
+        private void HighlightCurrentWord(int position, int length)
+        {
+            try
+            {
+                // Create a rectangle to highlight the current word
+                var highlight = new Rectangle
+                {
+                    Fill = new SolidColorBrush(Color.Parse("#3078D7")),
+                    Opacity = 0.5,
+                    RadiusX = 3,
+                    RadiusY = 3
+                };
+                
+                // Position the highlight at the right spot
+                // This is an approximation and might need refinement
+                double approxCharWidth = 7; // Approximate width of a character
+                double approxLineHeight = 20; // Approximate line height
+                
+                // Calculate text before the position
+                string textBefore = _fullText.Substring(0, position);
+                int lineBreaksBefore = textBefore.Count(c => c == '\n');
+                
+                // Calculate character position in line
+                int lastLineBreak = textBefore.LastIndexOf('\n');
+                int charsInCurrentLine = lastLineBreak >= 0 ? position - lastLineBreak - 1 : position;
+                
+                // Calculate position of highlight
+                double x = charsInCurrentLine * approxCharWidth + 15; // +15 for TextBlock margin
+                double y = lineBreaksBefore * approxLineHeight + 15; // +15 for TextBlock margin
+                
+                // Set size and position
+                highlight.Width = length * approxCharWidth;
+                highlight.Height = approxLineHeight;
+                
+                Canvas.SetLeft(highlight, x);
+                Canvas.SetTop(highlight, y);
+                
+                // Add to canvas
+                HighlightCanvas.Children.Add(highlight);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error highlighting word: {ex.Message}");
             }
         }
         
@@ -541,6 +780,9 @@ namespace SpeedReader
                 {
                     return new List<string>();
                 }
+                
+                // Store the full text for context display
+                _fullText = text;
                 
                 // Clean and split the text into words
                 // Remove common non-alphanumeric characters except those that might be part of words

@@ -134,7 +134,32 @@
         <!-- Display Section -->
         <Border Grid.Row="1" Background="#252526" Margin="20,10" BorderBrush="#444444" BorderThickness="1" CornerRadius="8" BoxShadow="0 4 8 0 #15000000">
             <Grid>
-                <!-- Fixed-size word display container that stays centered -->
+                <!-- Context text (shown in background) -->
+                <Border x:Name="ContextBorder"
+                        Margin="20,20,20,45" 
+                        Background="#1E1E1E" 
+                        BorderBrush="#333333" 
+                        BorderThickness="1" 
+                        CornerRadius="4">
+                    <Grid>
+                        <ScrollViewer x:Name="ContextScrollViewer" 
+                                      HorizontalScrollBarVisibility="Disabled" 
+                                      VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="ContextTextDisplay"
+                                       Margin="15"
+                                       TextWrapping="Wrap"
+                                       LineHeight="1.6"
+                                       FontSize="14"
+                                       Opacity="0.5"
+                                       Foreground="#BBBBBB"/>
+                        </ScrollViewer>
+                        
+                        <!-- Highlight for current position -->
+                        <Canvas x:Name="HighlightCanvas" IsHitTestVisible="False"/>
+                    </Grid>
+                </Border>
+                
+                <!-- Current word (shown prominently in center) -->
                 <Border x:Name="WordHighlight"
                         Background="#0066CC" 
                         CornerRadius="6"
@@ -144,7 +169,7 @@
                         VerticalAlignment="Center"
                         BorderBrush="#0078D7"
                         BorderThickness="1"
-                        BoxShadow="0 2 10 0 #20000000">
+                        BoxShadow="0 4 10 0 #30000000">
                     <TextBlock x:Name="WordDisplay" 
                                Text="Words will appear here" 
                                FontSize="32" 
@@ -155,8 +180,17 @@
                                Foreground="White"/>
                 </Border>
                 
-                <!-- Reading stats -->
+                <!-- Reading stats and context toggle -->
                 <StackPanel VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,10,15,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,5">
+                        <TextBlock Text="Show Context" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"/>
+                        <ToggleSwitch x:Name="ContextToggle" 
+                                      IsChecked="True" 
+                                      OnContent="" 
+                                      OffContent=""
+                                      Checked="ContextToggle_Checked"
+                                      Unchecked="ContextToggle_Unchecked"/>
+                    </StackPanel>
                     <TextBlock x:Name="StatsDisplay" 
                                Text="0 / 0 words" 
                                Foreground="White" 

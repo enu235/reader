@@ -8,6 +8,7 @@ A cross-platform .NET application that displays text from PDFs or web pages one 
 - Smart content extraction from web pages
 - Configure reading speed (words per minute)
 - Customize font family and size
+- Context view to see surrounding text while reading
 - Pause, resume, and stop reading
 - Reading progress indicator
 - Cross-platform (Windows, macOS, Linux)
@@ -40,8 +41,18 @@ A cross-platform .NET application that displays text from PDFs or web pages one 
    - The application will analyze the page and identify potential content areas
    - You can select which content area to read from
 4. Configure the font family, font size, and reading speed (words per minute)
-5. Click "Start" to begin reading
-6. Use "Pause" to pause reading and "Stop" to stop completely
+5. Toggle the context view on/off to see surrounding text while reading
+6. Click "Start" to begin reading
+7. Use "Pause" to pause reading and "Stop" to stop completely
+
+## Context View
+
+The application includes a context view feature that shows the surrounding text while focusing on one word at a time:
+
+1. The current word is displayed prominently in the center
+2. The surrounding text is shown in the background with reduced opacity
+3. The current word's position is highlighted in the context text
+4. Toggle the context view on or off using the switch in the top-right corner
 
 ## Web Page Content Extraction
 
@@ -64,7 +75,7 @@ The application includes a smart content extraction feature for web pages:
 - Visual selection of content regions on web pages
 - Save and load reading preferences
 - Text highlighting options
-- Night mode / dark theme 
+- Themes and color customization
 
 <Window Title="Select Content Region">
     <Grid>
