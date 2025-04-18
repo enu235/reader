@@ -54,8 +54,15 @@ namespace SpeedReader
             bool showContext = ContextToggle.IsChecked ?? true;
             ContextBorder.IsVisible = showContext;
             
-            // Adjust word display z-index to ensure it's on top
-            WordHighlight.ZIndex = 10;
+            // Make the word highlight appear on top
+            WordHighlight.ZIndex = 100;
+            
+            // Set the initial text opacity and make sure the ScrollViewer is transparent
+            ContextTextDisplay.Opacity = 1.0;
+            ContextScrollViewer.Background = Brushes.Transparent;
+            
+            // Set the highlight canvas to appear behind the text
+            HighlightCanvas.ZIndex = 0;
         }
 
         private void ContextToggle_Checked(object sender, RoutedEventArgs e)
@@ -350,14 +357,21 @@ namespace SpeedReader
         {
             try
             {
-                Dispatcher.UIThread.Post(() => {
+                Dispatcher.UIThread.Post(async () => {
                     if (_currentWordIndex < _words.Count)
                     {
                         // Update the word display with animation
                         UpdateWordDisplay(_words[_currentWordIndex]);
                         
-                        // Update context text
+                        // Update context text and highlighting
                         UpdateContextDisplay();
+                        
+                        // Wait for layout to complete
+                        await Task.Delay(1); // Give the UI time to update
+                        
+                        // Force a layout update to ensure highlighting is correct
+                        ContextBorder.InvalidateVisual();
+                        HighlightCanvas.InvalidateVisual();
                         
                         // Update progress and stats
                         ReadingProgress.Value = _currentWordIndex + 1;
@@ -368,17 +382,17 @@ namespace SpeedReader
                     else
                     {
                         _timer.Stop();
-                        ShowMessageAsync("Information", "Reading completed!").ConfigureAwait(false);
-                        ResetControlsAsync().ConfigureAwait(false);
+                        await ShowMessageAsync("Information", "Reading completed!");
+                        await ResetControlsAsync();
                     }
                 });
             }
             catch (Exception ex)
             {
-                Dispatcher.UIThread.Post(() => {
+                Dispatcher.UIThread.Post(async () => {
                     _timer.Stop();
-                    ShowMessageAsync("Error", $"Error during reading: {ex.Message}").ConfigureAwait(false);
-                    ResetControlsAsync().ConfigureAwait(false);
+                    await ShowMessageAsync("Error", $"Error during reading: {ex.Message}");
+                    await ResetControlsAsync();
                 });
             }
         }
@@ -436,6 +450,10 @@ namespace SpeedReader
                         
                         // Add highlight for the current word
                         HighlightCurrentWord(position, _words[_currentWordIndex].Length);
+                        
+                        // Force layout update to ensure highlight position is correct
+                        HighlightCanvas.InvalidateVisual();
+                        ContextScrollViewer.InvalidateVisual();
                     }
                 }
             }
@@ -540,26 +558,34 @@ namespace SpeedReader
         {
             try
             {
+                if (position < 0 || ContextTextDisplay == null || ContextScrollViewer == null) return;
+                
                 // Estimate the position in the document by creating a temporary TextBlock
                 // with the same formatting as ContextTextDisplay but only containing text up to the position
-                var tempText = _fullText.Substring(0, position);
+                var tempText = position < _fullText.Length ? _fullText.Substring(0, position) : _fullText;
+                
                 var tempTextBlock = new TextBlock
                 {
                     Text = tempText,
                     TextWrapping = TextWrapping.Wrap,
-                    Width = ContextTextDisplay.Bounds.Width
+                    Width = ContextTextDisplay.Bounds.Width > 0 ? ContextTextDisplay.Bounds.Width : 400,
+                    FontSize = ContextTextDisplay.FontSize,
+                    FontFamily = ContextTextDisplay.FontFamily,
+                    LineHeight = ContextTextDisplay.LineHeight
                 };
                 
                 // Measure the temporary TextBlock
                 tempTextBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
                 
-                // Calculate the approximate vertical position
-                double lineHeight = 20; // Estimated line height
-                int lineCount = (int)(tempTextBlock.DesiredSize.Height / lineHeight);
-                double verticalOffset = lineCount * lineHeight;
+                // Get viewport height
+                double viewportHeight = ContextScrollViewer.Viewport.Height;
                 
-                // Scroll to the position
-                ContextScrollViewer.Offset = new Vector(0, Math.Max(0, verticalOffset - 100));
+                // Calculate vertical offset to center the current position
+                double verticalPosition = tempTextBlock.DesiredSize.Height;
+                double offsetY = Math.Max(0, verticalPosition - (viewportHeight / 2));
+                
+                // Apply the scroll
+                ContextScrollViewer.Offset = new Vector(0, offsetY);
             }
             catch (Exception ex)
             {
@@ -575,31 +601,34 @@ namespace SpeedReader
                 var highlight = new Rectangle
                 {
                     Fill = new SolidColorBrush(Color.Parse("#3078D7")),
-                    Opacity = 0.5,
+                    Opacity = 0.3,
                     RadiusX = 3,
                     RadiusY = 3
                 };
                 
-                // Position the highlight at the right spot
-                // This is an approximation and might need refinement
-                double approxCharWidth = 7; // Approximate width of a character
-                double approxLineHeight = 20; // Approximate line height
+                // Get accurate measurements from the text display
+                double fontSizeInPixels = ContextTextDisplay.FontSize;
+                double lineHeight = fontSizeInPixels * ContextTextDisplay.LineHeight;
+                double charWidth = fontSizeInPixels * 0.6; // Approximate character width based on font size
                 
                 // Calculate text before the position
                 string textBefore = _fullText.Substring(0, position);
-                int lineBreaksBefore = textBefore.Count(c => c == '\n');
                 
-                // Calculate character position in line
-                int lastLineBreak = textBefore.LastIndexOf('\n');
-                int charsInCurrentLine = lastLineBreak >= 0 ? position - lastLineBreak - 1 : position;
+                // Handle line breaks more accurately
+                var lines = textBefore.Split('\n');
+                int lineBreaksBefore = lines.Length - 1;
+                
+                // Get the last line's text for character position calculation
+                string lastLine = lines[lines.Length - 1];
+                int charsInCurrentLine = lastLine.Length;
                 
                 // Calculate position of highlight
-                double x = charsInCurrentLine * approxCharWidth + 15; // +15 for TextBlock margin
-                double y = lineBreaksBefore * approxLineHeight + 15; // +15 for TextBlock margin
+                double x = charsInCurrentLine * charWidth + ContextTextDisplay.Margin.Left;
+                double y = lineBreaksBefore * lineHeight + ContextTextDisplay.Margin.Top;
                 
                 // Set size and position
-                highlight.Width = length * approxCharWidth;
-                highlight.Height = approxLineHeight;
+                highlight.Width = length * charWidth;
+                highlight.Height = lineHeight;
                 
                 Canvas.SetLeft(highlight, x);
                 Canvas.SetTop(highlight, y);
@@ -781,17 +810,22 @@ namespace SpeedReader
                     return new List<string>();
                 }
                 
-                // Store the full text for context display
-                _fullText = text;
+                // Normalize line breaks for consistent processing
+                string normalizedText = text.Replace("\r\n", "\n")
+                                           .Replace("\r", "\n");
                 
-                // Clean and split the text into words
-                // Remove common non-alphanumeric characters except those that might be part of words
-                string cleanedText = text.Replace("\n", " ")
-                                        .Replace("\r", " ")
-                                        .Replace("\t", " ");
-
+                // Store the full text with normalized line breaks for context display
+                _fullText = normalizedText;
+                
+                // Process text for word extraction
+                // Replace tabs with spaces but keep line breaks
+                string processedText = normalizedText.Replace("\t", " ");
+                
+                // Create a version without line breaks for word splitting
+                string textForSplitting = processedText.Replace("\n", " ");
+                
                 // Split by spaces and filter out empty entries
-                string[] words = cleanedText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                string[] words = textForSplitting.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
                                         .Select(w => w.Trim())
                                         .Where(w => !string.IsNullOrWhiteSpace(w))
                                         .ToArray();

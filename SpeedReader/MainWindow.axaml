@@ -142,20 +142,22 @@
                         BorderThickness="1" 
                         CornerRadius="4">
                     <Grid>
+                        <!-- Highlight for current position - moved above the ScrollViewer to appear behind text -->
+                        <Canvas x:Name="HighlightCanvas" IsHitTestVisible="False"/>
+                        
                         <ScrollViewer x:Name="ContextScrollViewer" 
                                       HorizontalScrollBarVisibility="Disabled" 
-                                      VerticalScrollBarVisibility="Auto">
+                                      VerticalScrollBarVisibility="Auto"
+                                      Background="Transparent">
                             <TextBlock x:Name="ContextTextDisplay"
                                        Margin="15"
                                        TextWrapping="Wrap"
                                        LineHeight="1.6"
                                        FontSize="14"
-                                       Opacity="0.5"
-                                       Foreground="#BBBBBB"/>
+                                       Opacity="1.0"
+                                       Foreground="#BBBBBB"
+                                       Background="Transparent"/>
                         </ScrollViewer>
-                        
-                        <!-- Highlight for current position -->
-                        <Canvas x:Name="HighlightCanvas" IsHitTestVisible="False"/>
                     </Grid>
                 </Border>
                 
@@ -169,7 +171,8 @@
                         VerticalAlignment="Center"
                         BorderBrush="#0078D7"
                         BorderThickness="1"
-                        BoxShadow="0 4 10 0 #30000000">
+                        BoxShadow="0 4 10 0 #30000000"
+                        ZIndex="100">
                     <TextBlock x:Name="WordDisplay" 
                                Text="Words will appear here" 
                                FontSize="32" 
