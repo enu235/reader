@@ -152,8 +152,10 @@
                             <TextBlock x:Name="ContextTextDisplay"
                                        Margin="15"
                                        TextWrapping="Wrap"
-                                       LineHeight="1.6"
+                                       LineHeight="2.0"
                                        FontSize="14"
+                                       LineSpacing="5"
+                                       LetterSpacing="0.5"
                                        Opacity="1.0"
                                        Foreground="#BBBBBB"
                                        Background="Transparent"/>
