@@ -31,6 +31,12 @@ namespace SpeedReader
         private CancellationTokenSource? _cancellationTokenSource;
         private bool _isPaused = false;
         private const int CONTEXT_WINDOW = 100; // Number of words to show before and after
+        
+        // Cache for word positions to avoid recalculating
+        private Dictionary<int, int> _wordPositionCache = new Dictionary<int, int>();
+        
+        // Control how often the scroll position updates (higher = less jumping)
+        private double _scrollThreshold = 0.33; // Only scroll when position changes by 1/3 of viewport
 
         public MainWindow()
         {
@@ -64,6 +70,10 @@ namespace SpeedReader
             
             // Set the highlight canvas to appear behind the text
             HighlightCanvas.ZIndex = 0;
+            
+            // Configure scroll settings for smoother behavior
+            // Higher threshold means less frequent updates but smoother scrolling
+            _scrollThreshold = 0.33; // Only scroll when position changes by 1/3 of viewport
         }
 
         private void ContextToggle_Checked(object sender, RoutedEventArgs e)
@@ -142,6 +152,7 @@ namespace SpeedReader
                 _cancellationTokenSource = new CancellationTokenSource();
                 _currentWordIndex = 0;
                 _words.Clear();
+                _wordPositionCache.Clear(); // Clear the word position cache
 
                 try
                 {
@@ -331,6 +342,7 @@ namespace SpeedReader
                     WordDisplay.Text = "Words will appear here";
                     ReadingProgress.Value = 0;
                     _currentWordIndex = 0;
+                    _wordPositionCache.Clear(); // Clear the cache when stopping
                 });
                 
                 ResetControlsAsync().ConfigureAwait(false);
@@ -364,16 +376,15 @@ namespace SpeedReader
                         // Update the word display with animation
                         UpdateWordDisplay(_words[_currentWordIndex]);
                         
-                        // Update context text and highlighting
-                        UpdateContextDisplay();
-                        
-                        // Wait for layout to complete
-                        await Task.Delay(5); // Give the UI time to update
-                        
-                        // Force a layout update to ensure highlighting is correct
-                        ContextTextDisplay.InvalidateVisual();
-                        HighlightCanvas.InvalidateVisual();
-                        ContextScrollViewer.InvalidateVisual();
+                        // Only update context highlighting if context is visible
+                        if (ContextBorder.IsVisible)
+                        {
+                            // Update context text and highlighting
+                            UpdateContextDisplay();
+                            
+                            // Wait for layout to complete
+                            await Task.Delay(1); // Minimal delay to allow UI update
+                        }
                         
                         // Update progress and stats
                         ReadingProgress.Value = _currentWordIndex + 1;
@@ -433,10 +444,6 @@ namespace SpeedReader
                     ContextTextDisplay.Text = _fullText;
                 }
                 
-                // Calculate the visible range
-                int startIndex = Math.Max(0, _currentWordIndex - CONTEXT_WINDOW);
-                int endIndex = Math.Min(_words.Count - 1, _currentWordIndex + CONTEXT_WINDOW);
-                
                 // Clear existing highlights
                 HighlightCanvas.Children.Clear();
                 
@@ -447,15 +454,12 @@ namespace SpeedReader
                     int position = GetPositionOfWordInText(_currentWordIndex);
                     if (position >= 0)
                     {
-                        // Scroll to make sure the word is visible
-                        ScrollToPosition(position);
-                        
-                        // Add highlight for the current word
+                        // Add highlight for the current word first, before scrolling
+                        // This reduces visual jumpiness by showing the highlight in place
                         HighlightCurrentWord(position, _words[_currentWordIndex].Length);
                         
-                        // Force layout update to ensure highlight position is correct
-                        HighlightCanvas.InvalidateVisual();
-                        ContextScrollViewer.InvalidateVisual();
+                        // Then scroll to make sure the word is visible
+                        ScrollToPosition(position);
                     }
                 }
             }
@@ -471,6 +475,12 @@ namespace SpeedReader
             if (string.IsNullOrEmpty(_fullText) || wordIndex < 0 || wordIndex >= _words.Count)
                 return -1;
             
+            // Check if this position is already cached
+            if (_wordPositionCache.TryGetValue(wordIndex, out int cachedPosition))
+            {
+                return cachedPosition;
+            }
+            
             try
             {
                 // Get the current word
@@ -478,90 +488,130 @@ namespace SpeedReader
                 if (string.IsNullOrEmpty(currentWord))
                     return -1;
                 
-                // For better context, create a phrase with a few words around the target word
-                int windowSize = 3; // Words to include before and after
-                int startWindow = Math.Max(0, wordIndex - windowSize);
-                int endWindow = Math.Min(_words.Count - 1, wordIndex + windowSize);
+                int position = -1;
                 
-                // Build the search pattern
-                StringBuilder searchPhrase = new StringBuilder();
-                
-                // Words before current word
-                for (int i = startWindow; i < wordIndex; i++)
+                // If this is the word right after the previous one, try to optimize
+                if (wordIndex > 0 && _wordPositionCache.TryGetValue(wordIndex - 1, out int prevPosition))
                 {
-                    searchPhrase.Append(_words[i]).Append(" ");
-                }
-                
-                // The current word
-                searchPhrase.Append(currentWord);
-                
-                // Words after current word
-                if (wordIndex < endWindow)
-                {
-                    searchPhrase.Append(" ");
-                    for (int i = wordIndex + 1; i <= endWindow; i++)
+                    // Find the previous word in the text
+                    string prevWord = _words[wordIndex - 1];
+                    int searchStart = prevPosition + prevWord.Length;
+                    
+                    // Look for the current word close to the previous one
+                    // This covers the common case where words are consecutive
+                    int nearPosition = _fullText.IndexOf(currentWord, searchStart, 
+                        Math.Min(30, _fullText.Length - searchStart)); // Look within 30 chars
+                    
+                    if (nearPosition >= 0)
                     {
-                        searchPhrase.Append(_words[i]);
-                        if (i < endWindow) searchPhrase.Append(" ");
+                        position = nearPosition;
                     }
                 }
                 
-                // Try to find the phrase in the text
-                string searchPattern = searchPhrase.ToString();
-                int phrasePos = _fullText.IndexOf(searchPattern);
-                
-                // If the phrase is found, calculate the exact position of the current word
-                if (phrasePos >= 0)
+                // If the quick search failed, use the regular approach
+                if (position < 0)
                 {
-                    // Calculate the offset to the current word within the phrase
-                    int offsetToCurrentWord = 0;
+                    // For better context, create a phrase with words around the target word
+                    // Use a smaller window size to improve performance
+                    int windowSize = 2; // Words to include before and after
+                    int startWindow = Math.Max(0, wordIndex - windowSize);
+                    int endWindow = Math.Min(_words.Count - 1, wordIndex + windowSize);
+                    
+                    // Build the search pattern
+                    StringBuilder searchPhrase = new StringBuilder();
+                    
+                    // Words before current word
                     for (int i = startWindow; i < wordIndex; i++)
                     {
-                        offsetToCurrentWord += _words[i].Length + 1; // +1 for space
+                        searchPhrase.Append(_words[i]).Append(" ");
                     }
                     
-                    return phrasePos + offsetToCurrentWord;
-                }
-                
-                // If phrase not found, try to find the word by itself
-                // This is a fallback option and less accurate
-                if (!string.IsNullOrEmpty(currentWord))
-                {
-                    // Find all occurrences of the word
-                    List<int> positions = new List<int>();
-                    int pos = 0;
+                    // The current word
+                    searchPhrase.Append(currentWord);
                     
-                    // Use a regex to find word boundaries to avoid partial matches
-                    string pattern = $@"\b{Regex.Escape(currentWord)}\b";
-                    foreach (Match match in Regex.Matches(_fullText, pattern))
+                    // Words after current word
+                    if (wordIndex < endWindow)
                     {
-                        positions.Add(match.Index);
-                    }
-                    
-                    // If no regex matches found, try simple string search
-                    if (positions.Count == 0)
-                    {
-                        pos = 0;
-                        while ((pos = _fullText.IndexOf(currentWord, pos)) >= 0)
+                        searchPhrase.Append(" ");
+                        for (int i = wordIndex + 1; i <= endWindow; i++)
                         {
-                            positions.Add(pos);
-                            pos += currentWord.Length;
+                            searchPhrase.Append(_words[i]);
+                            if (i < endWindow) searchPhrase.Append(" ");
                         }
                     }
                     
-                    if (positions.Count > 0)
+                    // Try to find the phrase in the text
+                    string searchPattern = searchPhrase.ToString();
+                    int phrasePos = _fullText.IndexOf(searchPattern);
+                    
+                    // If the phrase is found, calculate the exact position of the current word
+                    if (phrasePos >= 0)
                     {
-                        // Try to find the occurrence closest to where we expect it
-                        double progress = (double)wordIndex / _words.Count;
-                        int expectedPos = (int)(_fullText.Length * progress);
+                        // Calculate the offset to the current word within the phrase
+                        int offsetToCurrentWord = 0;
+                        for (int i = startWindow; i < wordIndex; i++)
+                        {
+                            offsetToCurrentWord += _words[i].Length + 1; // +1 for space
+                        }
                         
-                        // Return closest position to expected
-                        return positions.OrderBy(p => Math.Abs(p - expectedPos)).First();
+                        position = phrasePos + offsetToCurrentWord;
+                    }
+                    else if (!string.IsNullOrEmpty(currentWord))
+                    {
+                        // Fallback: Basic word search
+                        // For performance, use string.IndexOf instead of Regex
+                        List<int> positions = new List<int>();
+                        int pos = 0;
+                        
+                        // Simple search without regex for better performance
+                        while ((pos = _fullText.IndexOf(currentWord, pos)) >= 0)
+                        {
+                            // Simple check for word boundaries
+                            bool isWordStart = pos == 0 || !char.IsLetterOrDigit(_fullText[pos - 1]);
+                            bool isWordEnd = pos + currentWord.Length >= _fullText.Length || 
+                                !char.IsLetterOrDigit(_fullText[pos + currentWord.Length]);
+                            
+                            if (isWordStart && isWordEnd)
+                                positions.Add(pos);
+                            
+                            pos += currentWord.Length;
+                        }
+                        
+                        if (positions.Count > 0)
+                        {
+                            // For performance, use a simpler algorithm to find best match
+                            double progress = (double)wordIndex / _words.Count;
+                            int expectedPos = (int)(_fullText.Length * progress);
+                            
+                            // Find closest position with a simple loop
+                            int closestPos = positions[0];
+                            int closestDiff = Math.Abs(closestPos - expectedPos);
+                            
+                            for (int i = 1; i < positions.Count; i++)
+                            {
+                                int diff = Math.Abs(positions[i] - expectedPos);
+                                if (diff < closestDiff)
+                                {
+                                    closestDiff = diff;
+                                    closestPos = positions[i];
+                                }
+                            }
+                            
+                            position = closestPos;
+                        }
                     }
                 }
                 
-                // Fallback: return a position based on progress through the text
-                return (int)(_fullText.Length * ((double)wordIndex / _words.Count));
+                // If all methods failed, use a position based on progress
+                if (position < 0)
+                {
+                    position = (int)(_fullText.Length * ((double)wordIndex / _words.Count));
+                }
+                
+                // Cache the result to avoid recalculating
+                _wordPositionCache[wordIndex] = position;
+                
+                return position;
             }
             catch (Exception ex)
             {
@@ -584,22 +634,6 @@ namespace SpeedReader
                 string textBeforePosition = _fullText.Substring(0, position);
                 int lineNumber = textBeforePosition.Count(c => c == '\n');
                 
-                // Create a temporary TextBlock to measure dimensions properly
-                var tempTextBlock = new TextBlock
-                {
-                    Text = textBeforePosition,
-                    TextWrapping = TextWrapping.Wrap,
-                    Width = ContextTextDisplay.Bounds.Width > 0 ? ContextTextDisplay.Bounds.Width : 400,
-                    FontSize = ContextTextDisplay.FontSize,
-                    FontFamily = ContextTextDisplay.FontFamily,
-                    LineHeight = ContextTextDisplay.LineHeight,
-                    LineSpacing = ContextTextDisplay.LineSpacing,
-                    LetterSpacing = ContextTextDisplay.LetterSpacing
-                };
-                
-                // Measure the temporary TextBlock
-                tempTextBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                
                 // Calculate the vertical position based on line count
                 double lineHeight = ContextTextDisplay.FontSize * ContextTextDisplay.LineHeight;
                 double lineSpacing = ContextTextDisplay.LineSpacing;
@@ -608,11 +642,18 @@ namespace SpeedReader
                 // Get viewport height
                 double viewportHeight = ContextScrollViewer.Viewport.Height;
                 
-                // Center the current word in the viewport
-                double offsetY = Math.Max(0, verticalPosition - (viewportHeight / 3));
+                // Center the current word in the viewport - using 1/3 so it's biased toward the top
+                double targetOffset = Math.Max(0, verticalPosition - (viewportHeight / 3));
                 
-                // Apply scroll with a small animation for smooth effect
-                ContextScrollViewer.Offset = new Vector(0, offsetY);
+                // Get current scroll position
+                double currentOffset = ContextScrollViewer.Offset.Y;
+                
+                // Only scroll if necessary and if the change is significant based on threshold
+                if (Math.Abs(targetOffset - currentOffset) > viewportHeight * _scrollThreshold)
+                {
+                    // Apply scroll
+                    ContextScrollViewer.Offset = new Vector(0, targetOffset);
+                }
             }
             catch (Exception ex)
             {
@@ -624,6 +665,8 @@ namespace SpeedReader
         {
             try
             {
+                if (length <= 0) length = 1; // Ensure minimum length
+                
                 // Create a rectangle to highlight the current word
                 var highlight = new Rectangle
                 {
@@ -645,13 +688,24 @@ namespace SpeedReader
                 // Calculate text before the position
                 string textBefore = position < _fullText.Length ? _fullText.Substring(0, position) : "";
                 
-                // Handle line breaks more accurately
-                var lines = textBefore.Split('\n');
-                int lineBreaksBefore = lines.Length - 1;
+                // Only count actual line breaks to reduce computation
+                int lineBreaksBefore = 0;
+                int lastNewLine = -1;
+                
+                // Find the last line break and count total line breaks
+                for (int i = 0; i < textBefore.Length; i++)
+                {
+                    if (textBefore[i] == '\n')
+                    {
+                        lineBreaksBefore++;
+                        lastNewLine = i;
+                    }
+                }
                 
                 // Get the last line's text for character position calculation
-                string lastLine = lines.Length > 0 ? lines[lines.Length - 1] : "";
-                int charsInCurrentLine = lastLine.Length;
+                int charsInCurrentLine = lastNewLine >= 0 ? 
+                    textBefore.Length - (lastNewLine + 1) : 
+                    textBefore.Length;
                 
                 // Calculate position of highlight
                 double x = charsInCurrentLine * charWidth + ContextTextDisplay.Margin.Left;
